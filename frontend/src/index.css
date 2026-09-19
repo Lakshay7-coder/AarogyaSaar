@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Custom Healthcare UI styles */
+.clinical-card {
+  @apply bg-white rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md transition-all duration-200;
+}
+
+.clinical-badge {
+  @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium;
+}
+
+.pulse-ring {
+  position: relative;
+}
+.pulse-ring::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border-radius: 50%;
+  border: 2px solid #229068;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.2;
+    transform: scale(1.15);
+  }
+}
+
+
+/* Patient kiosk accessibility: scoped so existing clinical/doctor screens remain unchanged. */
+.patient-kiosk button,
+.patient-kiosk input,
+.patient-kiosk select,
+.patient-kiosk textarea {
+  min-height: 44px;
+}
+
+.patient-kiosk p,
+.patient-kiosk label,
+.patient-kiosk button,
+.patient-kiosk input,
+.patient-kiosk select,
+.patient-kiosk textarea {
+  line-height: 1.55;
+}
+
+.patient-kiosk .text-xs {
+  line-height: 1.5;
+}
+
+.patient-kiosk:lang(hi) {
+  letter-spacing: 0;
+}
+
+
+/* Mobile safety: prevent layout clipping on narrow devices. */
+html, body, #root {
+  max-width: 100%;
+  min-width: 0;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+@media (max-width: 767px) {
+  button, input, select, textarea {
+    max-width: 100%;
+  }
+}
