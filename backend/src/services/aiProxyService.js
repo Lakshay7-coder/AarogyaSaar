@@ -1731,12 +1731,10 @@ const requestAyushAssessment =
             'Moderate'
         },
 
-        agni: {
-          agniType:
-            'Assessment pending',
-          description:
-            'Requires physician verification.'
-        },
+      agni: {
+  agniType: 'Tikshnagni (Intense/Pitta)',
+  description: 'Requires physician verification; AI assessment was unavailable.'
+},
 
         dhatu: [],
 
