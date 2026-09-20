@@ -37,23 +37,14 @@ const AIInterviewPage = () => {
 
   const [session, setSession] = useState(null);
   const [messages, setMessages] = useState([]);
-
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
-
   const [isComplete, setIsComplete] = useState(false);
-
   const [suggestedOptions, setSuggestedOptions] = useState([]);
-
   const [extractedSummary, setExtractedSummary] = useState({});
-
   const [latestAiText, setLatestAiText] = useState('');
-
   const [redFlags, setRedFlags] = useState([]);
 
-  /*
-   * Confirmation state
-   */
   const [confirmationRequired, setConfirmationRequired] =
     useState(false);
 
@@ -63,13 +54,6 @@ const AIInterviewPage = () => {
   const [correctionMode, setCorrectionMode] =
     useState(false);
 
-  /*
-   * IMPORTANT:
-   * Hooks MUST be inside the component.
-   *
-   * confirmationRef prevents duplicate voice transcripts
-   * from replacing the answer currently waiting for confirmation.
-   */
   const chatEndRef = useRef(null);
   const confirmationRef = useRef(false);
 
@@ -111,10 +95,6 @@ const AIInterviewPage = () => {
             setIsComplete(true);
           }
 
-          /*
-           * Restore confirmation if the page was refreshed
-           * while an answer was waiting for confirmation.
-           */
           if (
             res.data.session?.pendingConfirmation?.active
           ) {
@@ -127,9 +107,6 @@ const AIInterviewPage = () => {
             );
           }
 
-          /*
-           * Restore extracted summary.
-           */
           if (
             res.data.session?.extractedSummary
           ) {
@@ -221,8 +198,7 @@ const AIInterviewPage = () => {
         return merged.filter(
           (item, index, array) =>
             array.findIndex(
-              (x) =>
-                x.label === item.label
+              (x) => x.label === item.label
             ) === index
         );
       });
@@ -231,8 +207,6 @@ const AIInterviewPage = () => {
 
   /*
    * Normal answer submission
-   *
-   * Text answers continue through the normal backend flow.
    */
   const handleSendMessage = async (
     textToSend,
@@ -262,9 +236,6 @@ const AIInterviewPage = () => {
       );
 
       if (res.data.success) {
-        /*
-         * Add returned messages.
-         */
         setMessages((previous) => [
           ...previous,
 
@@ -287,9 +258,6 @@ const AIInterviewPage = () => {
           res.data.suggestedOptions || []
         );
 
-        /*
-         * Confirmation required.
-         */
         if (
           res.data.confirmationRequired
         ) {
@@ -305,9 +273,6 @@ const AIInterviewPage = () => {
           setCorrectionMode(false);
         }
 
-        /*
-         * Confirmation resolved.
-         */
         if (
           res.data.confirmationResolved
         ) {
@@ -368,13 +333,7 @@ const AIInterviewPage = () => {
   };
 
   /*
-   * Voice transcript from normal interview.
-   *
-   * VoiceVisualizer.jsx is NOT modified.
-   *
-   * First voice transcript is placed into confirmation.
-   * Duplicate transcripts are ignored until confirmation
-   * or correction is completed.
+   * Voice transcript
    */
   const handleVoiceTranscript = (transcript) => {
     console.log(
@@ -386,10 +345,6 @@ const AIInterviewPage = () => {
       return;
     }
 
-    /*
-     * Ref is used instead of state because React state
-     * can have a stale closure during rapid voice events.
-     */
     if (confirmationRef.current) {
       console.log(
         'Ignoring additional voice transcript while confirmation is active:',
@@ -402,9 +357,6 @@ const AIInterviewPage = () => {
     const cleanedTranscript =
       transcript.trim();
 
-    /*
-     * Lock immediately.
-     */
     confirmationRef.current = true;
 
     setPendingAnswer(
@@ -419,7 +371,7 @@ const AIInterviewPage = () => {
   };
 
   /*
-   * Patient confirms the interpreted answer.
+   * Patient confirms answer
    */
   const handleConfirmAnswer = async () => {
     if (
@@ -448,9 +400,6 @@ const AIInterviewPage = () => {
       );
 
       if (res.data.success) {
-        /*
-         * Unlock voice input.
-         */
         confirmationRef.current = false;
 
         setConfirmationRequired(false);
@@ -521,207 +470,203 @@ const AIInterviewPage = () => {
   };
 
   /*
-   * Patient corrects the answer using voice or text.
+   * Patient correction
    */
   const handleCorrection = async (
-  correctedText,
-  inputType = 'text'
-) => {
-  if (
-    !correctedText?.trim() ||
-    loading
-  ) {
-    return;
-  }
-
-  const finalText = correctedText.trim();
-
-  console.log(
-    'CORRECTION SUBMIT:',
-    {
-      text: finalText,
-      inputType,
-      consultationId:
-        activeConsultationId
+    correctedText,
+    inputType = 'text'
+  ) => {
+    if (
+      !correctedText?.trim() ||
+      loading
+    ) {
+      return;
     }
-  );
 
-  setInputText('');
-  setLoading(true);
-
-  try {
-    const res = await api.post(
-      '/interview/message',
-      {
-        consultationId:
-          activeConsultationId,
-
-        text: finalText,
-
-        inputType,
-
-        confirmationAction: 'correct'
-      }
-    );
+    const finalText =
+      correctedText.trim();
 
     console.log(
-      'CORRECTION RESPONSE:',
-      res.data
+      'CORRECTION SUBMIT:',
+      {
+        text: finalText,
+        inputType,
+        consultationId:
+          activeConsultationId
+      }
     );
 
-    /*
-     * IMPORTANT:
-     * Backend is asking for confirmation again.
-     * Show the newly corrected answer instead of
-     * immediately closing confirmation mode.
-     */
-    if (
-      res.data.success &&
-      res.data.requiresConfirmation
-    ) {
-      confirmationRef.current = true;
+    setInputText('');
+    setLoading(true);
 
-      setConfirmationRequired(true);
+    try {
+      const res = await api.post(
+        '/interview/message',
+        {
+          consultationId:
+            activeConsultationId,
 
-      setPendingAnswer(
-        res.data.interpretedAnswer ||
-        finalText
+          text: finalText,
+
+          inputType,
+
+          confirmationAction:
+            'correct'
+        }
       );
 
-      setCorrectionMode(false);
+      console.log(
+        'CORRECTION RESPONSE:',
+        res.data
+      );
 
-      /*
-       * If backend gives a new confirmation prompt,
-       * show it as the latest AI message.
-       */
-      if (res.data.confirmationPrompt) {
+      if (
+        res.data.success &&
+        res.data.requiresConfirmation
+      ) {
+        confirmationRef.current = true;
+
+        setConfirmationRequired(true);
+
+        setPendingAnswer(
+          res.data.interpretedAnswer ||
+            finalText
+        );
+
+        setCorrectionMode(false);
+
+        if (
+          res.data.confirmationPrompt
+        ) {
+          setMessages((previous) => [
+            ...previous,
+            {
+              sender: 'ai',
+              text: res.data.confirmationPrompt,
+              inputType: 'system',
+              createdAt:
+                new Date().toISOString()
+            }
+          ]);
+
+          setLatestAiText(
+            res.data.confirmationPrompt
+          );
+        }
+
+        return;
+      }
+
+      if (res.data.success) {
+        confirmationRef.current = false;
+
+        setConfirmationRequired(false);
+
+        setPendingAnswer('');
+
+        setCorrectionMode(false);
+
         setMessages((previous) => [
           ...previous,
-          {
-            sender: 'ai',
-            text: res.data.confirmationPrompt,
-            inputType: 'system',
-            createdAt:
-              new Date().toISOString()
-          }
+
+          ...(res.data.patientMessage
+            ? [res.data.patientMessage]
+            : []),
+
+          ...(res.data.aiMessage
+            ? [res.data.aiMessage]
+            : [])
         ]);
 
-        setLatestAiText(
-          res.data.confirmationPrompt
+        if (res.data.aiMessage?.text) {
+          setLatestAiText(
+            res.data.aiMessage.text
+          );
+        }
+
+        setSuggestedOptions(
+          res.data.suggestedOptions || []
         );
+
+        if (
+          res.data.extractedEntities
+        ) {
+          applyExtractedEntities(
+            res.data.extractedEntities
+          );
+        }
+
+        if (res.data.isComplete) {
+          setIsComplete(true);
+
+          try {
+            await refreshCase();
+          } catch (error) {
+            console.warn(
+              'Case refresh failed:',
+              error
+            );
+          }
+        }
+
+        if (res.data.session) {
+          setSession(
+            res.data.session
+          );
+        }
       }
+    } catch (err) {
+      console.error(
+        'VOICE/TEXT CORRECTION ERROR:',
+        err
+      );
+
+      console.error(
+        'SERVER RESPONSE:',
+        err.response?.data
+      );
+
+      alert(
+        err.response?.data?.message ||
+        'Unable to submit correction.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /*
+   * Voice correction
+   */
+  const handleVoiceCorrection = (
+    transcript
+  ) => {
+    console.log(
+      'VOICE CORRECTION RECEIVED:',
+      transcript
+    );
+
+    if (!transcript?.trim()) {
+      console.log(
+        'Empty voice correction'
+      );
 
       return;
     }
 
-    /*
-     * Normal successful correction
-     */
-    if (res.data.success) {
-      confirmationRef.current = false;
+    const correctedText =
+      transcript.trim();
 
-      setConfirmationRequired(false);
-
-      setPendingAnswer('');
-
-      setCorrectionMode(false);
-
-      setMessages((previous) => [
-        ...previous,
-
-        ...(res.data.patientMessage
-          ? [res.data.patientMessage]
-          : []),
-
-        ...(res.data.aiMessage
-          ? [res.data.aiMessage]
-          : [])
-      ]);
-
-      if (res.data.aiMessage?.text) {
-        setLatestAiText(
-          res.data.aiMessage.text
-        );
-      }
-
-      setSuggestedOptions(
-        res.data.suggestedOptions || []
-      );
-
-      if (
-        res.data.extractedEntities
-      ) {
-        applyExtractedEntities(
-          res.data.extractedEntities
-        );
-      }
-
-      if (res.data.isComplete) {
-        setIsComplete(true);
-
-        try {
-          await refreshCase();
-        } catch (error) {
-          console.warn(
-            'Case refresh failed:',
-            error
-          );
-        }
-      }
-
-      if (res.data.session) {
-        setSession(
-          res.data.session
-        );
-      }
-    }
-
-  } catch (err) {
-    console.error(
-      'VOICE/TEXT CORRECTION ERROR:',
-      err
+    console.log(
+      'SUBMITTING VOICE CORRECTION:',
+      correctedText
     );
 
-    console.error(
-      'SERVER RESPONSE:',
-      err.response?.data
+    handleCorrection(
+      correctedText,
+      'voice'
     );
-
-    alert(
-      err.response?.data?.message ||
-      'Unable to submit correction.'
-    );
-
-  } finally {
-    setLoading(false);
-  }
-};
-  /*
-   * Voice correction.
-   */
- const handleVoiceCorrection = (transcript) => {
-  console.log(
-    'VOICE CORRECTION RECEIVED:',
-    transcript
-  );
-
-  if (!transcript?.trim()) {
-    console.log('Empty voice correction');
-    return;
-  }
-
-  const correctedText = transcript.trim();
-
-  console.log(
-    'SUBMITTING VOICE CORRECTION:',
-    correctedText
-  );
-
-  handleCorrection(
-    correctedText,
-    'voice'
-  );
-};
+  };
 
   /*
    * Progress
@@ -744,30 +689,87 @@ const AIInterviewPage = () => {
   );
 
   return (
-    <div className="patient-kiosk max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+    <div
+      className="
+        patient-kiosk
+        w-full
+        min-w-0
+        max-w-6xl
+        mx-auto
+        overflow-x-hidden
+        px-3
+        py-4
+        sm:px-6
+        sm:py-6
+        lg:px-8
+        lg:py-8
+      "
+    >
 
       {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div
+        className="
+          mb-5
+          flex
+          min-w-0
+          flex-col
+          gap-4
+          sm:mb-6
+          sm:flex-row
+          sm:items-center
+          sm:justify-between
+        "
+      >
 
-        <div>
-          <div className="flex items-center gap-2 text-ayur-700 text-xs font-bold uppercase tracking-wider mb-1">
+        <div className="min-w-0">
 
-            <Mic className="w-4 h-4" />
+          <div
+            className="
+              mb-1
+              flex
+              min-w-0
+              items-center
+              gap-2
+              text-ayur-700
+              text-xs
+              font-bold
+              uppercase
+              tracking-wider
+            "
+          >
 
-            Screen 3 of 12
+            <Mic className="h-4 w-4 shrink-0" />
+
+            <span>
+              Screen 3 of 12
+            </span>
+
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-
+          <h1
+            className="
+              break-words
+              text-2xl
+              font-extrabold
+              tracking-tight
+              text-slate-900
+              sm:text-3xl
+            "
+          >
             {t(
               uiLanguage,
               'voiceInterview'
             )}
-
           </h1>
 
-          <p className="text-sm text-slate-500 mt-0.5">
-
+          <p
+            className="
+              mt-0.5
+              break-words
+              text-sm
+              text-slate-500
+            "
+          >
             Active{' '}
 
             {t(
@@ -777,44 +779,81 @@ const AIInterviewPage = () => {
 
             :{' '}
 
-            <span className="font-bold text-slate-700">
-
+            <span
+              className="
+                font-bold
+                text-slate-700
+              "
+            >
               {activePatient?.name ||
                 'Ramesh Kumar'}
-
             </span>{' '}
 
             ({activeConsultationId})
-
           </p>
+
         </div>
 
         {/* PROGRESS */}
-        <div className="w-full sm:w-64 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+        <div
+          className="
+            w-full
+            min-w-0
+            rounded-xl
+            border
+            border-slate-200
+            bg-white
+            p-3
+            shadow-sm
+            sm:w-64
+            sm:shrink-0
+          "
+        >
 
-          <div className="flex justify-between text-xs font-bold mb-1.5">
+          <div
+            className="
+              mb-1.5
+              flex
+              justify-between
+              gap-3
+              text-xs
+              font-bold
+            "
+          >
 
             <span className="text-slate-600">
-
               {t(
                 uiLanguage,
                 'interviewProgress'
               )}
-
             </span>
 
             <span className="text-ayur-700">
-
               {progressPct}%
-
             </span>
 
           </div>
 
-          <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+          <div
+            className="
+              h-2
+              w-full
+              overflow-hidden
+              rounded-full
+              bg-slate-100
+            "
+          >
 
             <div
-              className="bg-gradient-to-r from-ayur-600 to-emerald-400 h-2 rounded-full transition-all duration-500"
+              className="
+                h-2
+                rounded-full
+                bg-gradient-to-r
+                from-ayur-600
+                to-emerald-400
+                transition-all
+                duration-500
+              "
               style={{
                 width: `${progressPct}%`
               }}
@@ -828,39 +867,78 @@ const AIInterviewPage = () => {
 
       {/* RED FLAGS */}
       {redFlags.length > 0 && (
-        <div className="mb-5 p-4 rounded-2xl bg-rose-50 border border-rose-300 flex items-start gap-3 shadow-sm">
+        <div
+          className="
+            mb-5
+            flex
+            min-w-0
+            items-start
+            gap-3
+            rounded-2xl
+            border
+            border-rose-300
+            bg-rose-50
+            p-4
+            shadow-sm
+          "
+        >
 
-          <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+          <ShieldAlert
+            className="
+              mt-0.5
+              h-5
+              w-5
+              shrink-0
+              text-rose-600
+            "
+          />
 
-          <div>
+          <div className="min-w-0">
 
-            <div className="text-xs font-extrabold uppercase tracking-wider text-rose-900">
-
+            <div
+              className="
+                text-xs
+                font-extrabold
+                uppercase
+                tracking-wider
+                text-rose-900
+              "
+            >
               {t(
                 uiLanguage,
                 'safetyFlag'
               )}
-
             </div>
 
-            <div className="text-sm font-semibold text-rose-800 mt-1">
-
+            <div
+              className="
+                mt-1
+                break-words
+                text-sm
+                font-semibold
+                text-rose-800
+              "
+            >
               {redFlags
                 .map(
                   (flag) =>
                     flag.label
                 )
                 .join(' • ')}
-
             </div>
 
-            <p className="text-[11px] text-rose-700 mt-1">
-
+            <p
+              className="
+                mt-1
+                break-words
+                text-[11px]
+                text-rose-700
+              "
+            >
               {t(
                 uiLanguage,
                 'safetyNote'
               )}
-
             </p>
 
           </div>
@@ -869,21 +947,51 @@ const AIInterviewPage = () => {
       )}
 
       {/* LANGUAGE */}
-      <div className="mb-5 p-4 rounded-2xl bg-gradient-to-r from-emerald-50 to-sky-50 border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div
+        className="
+          mb-5
+          flex
+          min-w-0
+          flex-col
+          gap-3
+          rounded-2xl
+          border
+          border-emerald-200
+          bg-gradient-to-r
+          from-emerald-50
+          to-sky-50
+          p-4
+          sm:flex-row
+          sm:items-center
+          sm:justify-between
+        "
+      >
 
-        <div>
+        <div className="min-w-0">
 
-          <div className="text-xs font-bold uppercase tracking-wider text-emerald-800">
-
+          <div
+            className="
+              text-xs
+              font-bold
+              uppercase
+              tracking-wider
+              text-emerald-800
+            "
+          >
             {t(
               uiLanguage,
               'multilingual'
             )}
-
           </div>
 
-          <p className="text-xs text-slate-600 mt-1">
-
+          <p
+            className="
+              mt-1
+              break-words
+              text-xs
+              text-slate-600
+            "
+          >
             {t(
               uiLanguage,
               'language'
@@ -895,13 +1003,27 @@ const AIInterviewPage = () => {
               uiLanguage,
               'languageNote'
             )}
-
           </p>
 
         </div>
 
-        <span className="px-3 py-1.5 rounded-full bg-white border border-emerald-200 text-[10px] font-bold text-emerald-700">
-
+        <span
+          className="
+            w-fit
+            max-w-full
+            shrink-0
+            break-words
+            rounded-full
+            border
+            border-emerald-200
+            bg-white
+            px-3
+            py-1.5
+            text-[10px]
+            font-bold
+            text-emerald-700
+          "
+        >
           {patientLanguage ===
           'Hindi'
             ? 'हिंदी सक्रिय'
@@ -909,25 +1031,48 @@ const AIInterviewPage = () => {
                 uiLanguage,
                 'languageActive'
               )}`}
-
         </span>
 
       </div>
 
       {/* INSTRUCTIONS */}
-      <div className="mb-5 rounded-2xl border border-sky-200 bg-sky-50/70 p-4 sm:p-5">
+      <div
+        className="
+          mb-5
+          min-w-0
+          rounded-2xl
+          border
+          border-sky-200
+          bg-sky-50/70
+          p-4
+          sm:p-5
+        "
+      >
 
-        <div className="text-sm sm:text-base font-bold text-sky-950">
-
+        <div
+          className="
+            break-words
+            text-sm
+            font-bold
+            text-sky-950
+            sm:text-base
+          "
+        >
           {t(
             uiLanguage,
             'instructions'
           )}
-
         </div>
 
-        <div className="text-xs sm:text-sm text-sky-800 mt-1">
-
+        <div
+          className="
+            mt-1
+            break-words
+            text-xs
+            text-sky-800
+            sm:text-sm
+          "
+        >
           {t(
             uiLanguage,
             'step'
@@ -944,483 +1089,960 @@ const AIInterviewPage = () => {
             uiLanguage,
             'interview'
           )}
-
         </div>
 
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* MAIN RESPONSIVE LAYOUT */}
+      <div
+        className="
+          grid
+          min-w-0
+          grid-cols-1
+          gap-5
+          xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]
+          xl:gap-6
+        "
+      >
 
-        {/* CHAT */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[560px]">
+        {/* =====================================================
+            AI VOICE INTERVIEW
+        ====================================================== */}
+        <div
+          className="
+            min-w-0
+            overflow-hidden
+            rounded-2xl
+            border
+            border-slate-200
+            bg-white
+            shadow-sm
+          "
+        >
 
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+          {/* CHAT AREA */}
+          <div
+            className="
+              flex
+              min-h-[420px]
+              flex-col
+              sm:min-h-[480px]
+              xl:h-[560px]
+              xl:min-h-0
+            "
+          >
 
-            {messages.map(
-              (message, index) => (
+            <div
+              className="
+                min-h-0
+                flex-1
+                overflow-y-auto
+                overflow-x-hidden
+                p-3
+                sm:p-5
+                xl:p-6
+              "
+            >
 
-                <div
-                  key={
-                    message._id ||
-                    `${message.createdAt || ''}-${index}`
-                  }
-                  className={`flex items-start gap-3 ${
-                    message.sender ===
-                    'patient'
-                      ? 'flex-row-reverse'
-                      : ''
-                  }`}
-                >
+              <div className="space-y-4">
 
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                      message.sender ===
-                      'patient'
-                        ? 'bg-clinical-600 text-white'
-                        : 'bg-ayur-600 text-white shadow-sm shadow-ayur-600/30'
-                    }`}
-                  >
+                {messages.map(
+                  (message, index) => (
 
-                    {message.sender ===
-                    'patient' ? (
+                    <div
+                      key={
+                        message._id ||
+                        `${message.createdAt || ''}-${index}`
+                      }
+                      className={`
+                        flex
+                        min-w-0
+                        items-start
+                        gap-2.5
+                        sm:gap-3
+                        ${
+                          message.sender ===
+                          'patient'
+                            ? 'flex-row-reverse'
+                            : ''
+                        }
+                      `}
+                    >
 
-                      <User className="w-4 h-4" />
-
-                    ) : (
-
-                      <Bot className="w-4 h-4" />
-
-                    )}
-
-                  </div>
-
-                  <div
-                    className={`max-w-[80%] rounded-2xl p-4 text-sm leading-relaxed ${
-                      message.sender ===
-                      'patient'
-                        ? 'bg-clinical-600 text-white rounded-tr-none'
-                        : 'bg-slate-50 border border-slate-200/80 text-slate-800 rounded-tl-none'
-                    }`}
-                  >
-
-                    <div className="flex items-center justify-between gap-2 mb-1">
-
-                      <span className="text-[10px] font-bold uppercase tracking-wider opacity-75">
+                      <div
+                        className={`
+                          flex
+                          h-8
+                          w-8
+                          shrink-0
+                          items-center
+                          justify-center
+                          rounded-full
+                          ${
+                            message.sender ===
+                            'patient'
+                              ? 'bg-clinical-600 text-white'
+                              : 'bg-ayur-600 text-white shadow-sm shadow-ayur-600/30'
+                          }
+                        `}
+                      >
 
                         {message.sender ===
-                        'patient'
-                          ? t(
-                              uiLanguage,
-                              'patient'
-                            )
-                          : t(
-                              uiLanguage,
-                              'ai'
-                            )}
+                        'patient' ? (
 
-                      </span>
+                          <User className="h-4 w-4" />
 
-                      {message.inputType ===
-                        'voice' && (
+                        ) : (
 
-                        <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded bg-white/20 font-semibold">
+                          <Bot className="h-4 w-4" />
 
-                          <Mic className="w-2.5 h-2.5" />
+                        )}
 
-                          {t(
-                            uiLanguage,
-                            'voice'
+                      </div>
+
+                      <div
+                        className={`
+                          min-w-0
+                          max-w-[calc(100%-2.75rem)]
+                          overflow-hidden
+                          rounded-2xl
+                          p-3
+                          text-sm
+                          leading-relaxed
+                          sm:max-w-[80%]
+                          sm:p-4
+                          ${
+                            message.sender ===
+                            'patient'
+                              ? 'rounded-tr-none bg-clinical-600 text-white'
+                              : 'rounded-tl-none border border-slate-200/80 bg-slate-50 text-slate-800'
+                          }
+                        `}
+                      >
+
+                        <div
+                          className="
+                            mb-1
+                            flex
+                            min-w-0
+                            flex-wrap
+                            items-center
+                            justify-between
+                            gap-2
+                          "
+                        >
+
+                          <span
+                            className="
+                              text-[10px]
+                              font-bold
+                              uppercase
+                              tracking-wider
+                              opacity-75
+                            "
+                          >
+                            {message.sender ===
+                            'patient'
+                              ? t(
+                                  uiLanguage,
+                                  'patient'
+                                )
+                              : t(
+                                  uiLanguage,
+                                  'ai'
+                                )}
+                          </span>
+
+                          {message.inputType ===
+                            'voice' && (
+
+                            <span
+                              className="
+                                inline-flex
+                                shrink-0
+                                items-center
+                                gap-1
+                                rounded
+                                bg-white/20
+                                px-1.5
+                                py-0.5
+                                text-[9px]
+                                font-semibold
+                              "
+                            >
+
+                              <Mic className="h-2.5 w-2.5" />
+
+                              {t(
+                                uiLanguage,
+                                'voice'
+                              )}
+
+                            </span>
+
                           )}
 
-                        </span>
+                        </div>
 
+                        <p
+                          className="
+                            break-words
+                            whitespace-pre-wrap
+                          "
+                        >
+                          {message.text}
+                        </p>
+
+                      </div>
+
+                    </div>
+                  )
+                )}
+
+                {loading && (
+
+                  <div
+                    className="
+                      flex
+                      min-w-0
+                      items-start
+                      gap-3
+                    "
+                  >
+
+                    <div
+                      className="
+                        flex
+                        h-8
+                        w-8
+                        shrink-0
+                        items-center
+                        justify-center
+                        rounded-full
+                        bg-ayur-600
+                        text-white
+                      "
+                    >
+                      <Bot className="h-4 w-4" />
+                    </div>
+
+                    <div
+                      className="
+                        flex
+                        min-w-0
+                        max-w-[85%]
+                        items-center
+                        gap-2
+                        rounded-2xl
+                        rounded-tl-none
+                        border
+                        border-slate-200
+                        bg-slate-50
+                        p-3
+                        text-xs
+                        text-slate-500
+                      "
+                    >
+
+                      <span
+                        className="
+                          h-2
+                          w-2
+                          shrink-0
+                          animate-ping
+                          rounded-full
+                          bg-ayur-500
+                        "
+                      />
+
+                      {t(
+                        uiLanguage,
+                        'thinking'
                       )}
 
                     </div>
 
-                    <p>
-                      {message.text}
-                    </p>
-
                   </div>
-
-                </div>
-              )
-            )}
-
-            {loading && (
-
-              <div className="flex items-start gap-3">
-
-                <div className="w-8 h-8 rounded-full bg-ayur-600 text-white flex items-center justify-center shrink-0">
-
-                  <Bot className="w-4 h-4" />
-
-                </div>
-
-                <div className="bg-slate-50 border border-slate-200 rounded-2xl rounded-tl-none p-3 text-xs text-slate-500 flex items-center gap-2">
-
-                  <span className="w-2 h-2 rounded-full bg-ayur-500 animate-ping" />
-
-                  {t(
-                    uiLanguage,
-                    'thinking'
-                  )}
-
-                </div>
-
-              </div>
-
-            )}
-
-            <div ref={chatEndRef} />
-
-          </div>
-
-          {/* QUICK OPTIONS */}
-          {suggestedOptions.length >
-            0 &&
-            !isComplete &&
-            !confirmationRequired && (
-
-              <div className="px-4 py-2 border-t border-slate-100 bg-slate-50/60 flex items-center gap-1.5 overflow-x-auto">
-
-                <span className="text-[10px] font-bold text-slate-400 uppercase shrink-0">
-
-                  {t(
-                    uiLanguage,
-                    'suggestions'
-                  )}
-
-                  :
-
-                </span>
-
-                {suggestedOptions.map(
-                  (option, index) => (
-
-                    <button
-                      key={index}
-                      onClick={() =>
-                        handleSendMessage(
-                          option,
-                          'text'
-                        )
-                      }
-                      disabled={loading}
-                      className="px-2.5 py-1 rounded-full bg-white border border-slate-200 hover:border-ayur-400 text-slate-700 text-xs font-medium whitespace-nowrap hover:bg-ayur-50 hover:text-ayur-900 transition disabled:opacity-50"
-                    >
-
-                      {option}
-
-                    </button>
-
-                  )
                 )}
 
+                <div ref={chatEndRef} />
+
               </div>
-            )}
 
-          {/* CONTROLS */}
-          <div className="p-4 border-t border-slate-200 bg-slate-50/50 rounded-b-2xl">
+            </div>
 
-            {isComplete ? (
+            {/* QUICK OPTIONS */}
+            {suggestedOptions.length >
+              0 &&
+              !isComplete &&
+              !confirmationRequired && (
 
-              <div className="flex items-center justify-between gap-4 p-2 bg-emerald-50 border border-emerald-200 rounded-xl">
-
-                <div className="flex items-center gap-2 text-emerald-800 text-xs font-bold">
-
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-
-                  {t(
-                    uiLanguage,
-                    'interviewComplete'
-                  )}
-
-                </div>
-
-                <button
-                  onClick={() =>
-                    navigate(
-                      '/documents'
-                    )
-                  }
-                  className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm inline-flex items-center gap-1.5 transition"
+                <div
+                  className="
+                    flex
+                    min-w-0
+                    items-center
+                    gap-1.5
+                    overflow-x-auto
+                    border-t
+                    border-slate-100
+                    bg-slate-50/60
+                    px-3
+                    py-2
+                    sm:px-4
+                  "
                 >
 
-                  <span>
-
+                  <span
+                    className="
+                      shrink-0
+                      text-[10px]
+                      font-bold
+                      uppercase
+                      text-slate-400
+                    "
+                  >
                     {t(
                       uiLanguage,
-                      'uploadDocuments'
+                      'suggestions'
                     )}
-
+                    :
                   </span>
 
-                  <ArrowRight className="w-3.5 h-3.5" />
-
-                </button>
-
-              </div>
-
-            ) : confirmationRequired ? (
-
-              /* CONFIRMATION UI */
-              <div className="space-y-3">
-
-                <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
-
-                  <div className="text-sm font-bold text-amber-900">
-
-                    {patientLanguage ===
-                    'Hindi'
-                      ? 'कृपया अपना उत्तर सत्यापित करें'
-                      : 'Please confirm your answer'}
-
-                  </div>
-
-                  <div className="text-xs text-amber-800 mt-1">
-
-                    {patientLanguage ===
-                    'Hindi'
-                      ? 'मैंने समझा:'
-                      : 'I understood:'}
-
-                  </div>
-
-                  <div className="mt-2 p-3 bg-white rounded-lg border border-amber-200 text-sm font-semibold text-slate-800">
-
-                    {pendingAnswer}
-
-                  </div>
-
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-
-                  <button
-                    type="button"
-                    onClick={
-                      handleConfirmAnswer
-                    }
-                    disabled={loading}
-                    className="flex-1 min-w-[150px] px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold disabled:opacity-50"
-                  >
-
-                    ✓{' '}
-
-                    {patientLanguage ===
-                    'Hindi'
-                      ? 'हाँ, सही है'
-                      : "Yes, that's correct"}
-
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCorrectionMode(
-                        true
-                      );
-
-                      setInputText('');
-                    }}
-                    disabled={loading}
-                    className="flex-1 min-w-[150px] px-4 py-3 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 text-sm font-bold disabled:opacity-50"
-                  >
-
-                    ✎{' '}
-
-                    {patientLanguage ===
-                    'Hindi'
-                      ? 'उत्तर बदलें'
-                      : 'Change my answer'}
-
-                  </button>
-
-                </div>
-
-                {correctionMode && (
-
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-
-                    <div className="text-xs font-bold text-slate-700 mb-2">
-
-                      {patientLanguage ===
-                      'Hindi'
-                        ? 'सही उत्तर बोलें या टाइप करें'
-                        : 'Speak or type your corrected answer'}
-
-                    </div>
-
-                    <div className="flex items-center gap-3">
-
-                      <VoiceVisualizer
-                        onTranscript={
-                          handleVoiceCorrection
-                        }
-                        textToSpeak=""
-                        language={
-                          patientLanguage
-                        }
-                      />
-
-                      <input
-                        type="text"
-                        value={
-                          inputText
-                        }
-                        onChange={(event) =>
-                          setInputText(
-                            event.target.value
-                          )
-                        }
-                        onKeyDown={(
-                          event
-                        ) => {
-
-                          if (
-                            event.key ===
-                              'Enter' &&
-                            inputText.trim()
-                          ) {
-
-                            handleCorrection(
-                              inputText,
-                              'text'
-                            );
-
-                          }
-
-                        }}
-                        placeholder={
-                          patientLanguage ===
-                          'Hindi'
-                            ? 'सही उत्तर टाइप करें...'
-                            : 'Type your corrected answer...'
-                        }
-                        className="flex-1 px-4 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-ayur-500"
-                        disabled={
-                          loading
-                        }
-                      />
+                  {suggestedOptions.map(
+                    (option, index) => (
 
                       <button
-                        type="button"
-                        disabled={
-                          loading ||
-                          !inputText.trim()
-                        }
+                        key={index}
                         onClick={() =>
-                          handleCorrection(
-                            inputText,
+                          handleSendMessage(
+                            option,
                             'text'
                           )
                         }
-                        className="p-2.5 rounded-xl bg-ayur-600 hover:bg-ayur-700 text-white disabled:opacity-40"
+                        disabled={loading}
+                        className="
+                          min-h-9
+                          shrink-0
+                          whitespace-nowrap
+                          rounded-full
+                          border
+                          border-slate-200
+                          bg-white
+                          px-2.5
+                          py-1
+                          text-xs
+                          font-medium
+                          text-slate-700
+                          transition
+                          hover:border-ayur-400
+                          hover:bg-ayur-50
+                          hover:text-ayur-900
+                          disabled:opacity-50
+                        "
                       >
-
-                        <Send className="w-4 h-4" />
-
+                        {option}
                       </button>
 
+                    )
+                  )}
+
+                </div>
+              )}
+
+            {/* =================================================
+                CONTROLS
+            ================================================== */}
+            <div
+              className="
+                min-w-0
+                border-t
+                border-slate-200
+                bg-slate-50/50
+                p-3
+                sm:p-4
+              "
+            >
+
+              {isComplete ? (
+
+                <div
+                  className="
+                    flex
+                    min-w-0
+                    flex-col
+                    gap-3
+                    rounded-xl
+                    border
+                    border-emerald-200
+                    bg-emerald-50
+                    p-3
+                    sm:flex-row
+                    sm:items-center
+                    sm:justify-between
+                    sm:gap-4
+                  "
+                >
+
+                  <div
+                    className="
+                      flex
+                      min-w-0
+                      items-center
+                      gap-2
+                      text-xs
+                      font-bold
+                      text-emerald-800
+                    "
+                  >
+
+                    <CheckCircle2
+                      className="
+                        h-5
+                        w-5
+                        shrink-0
+                        text-emerald-600
+                      "
+                    />
+
+                    <span className="break-words">
+                      {t(
+                        uiLanguage,
+                        'interviewComplete'
+                      )}
+                    </span>
+
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      navigate(
+                        '/documents'
+                      )
+                    }
+                    className="
+                      inline-flex
+                      min-h-11
+                      w-full
+                      shrink-0
+                      items-center
+                      justify-center
+                      gap-1.5
+                      rounded-lg
+                      bg-emerald-600
+                      px-4
+                      py-2
+                      text-xs
+                      font-bold
+                      text-white
+                      shadow-sm
+                      transition
+                      hover:bg-emerald-700
+                      sm:w-auto
+                    "
+                  >
+
+                    <span>
+                      {t(
+                        uiLanguage,
+                        'uploadDocuments'
+                      )}
+                    </span>
+
+                    <ArrowRight className="h-3.5 w-3.5" />
+
+                  </button>
+
+                </div>
+
+              ) : confirmationRequired ? (
+
+                /* CONFIRMATION UI */
+                <div className="min-w-0 space-y-3">
+
+                  <div
+                    className="
+                      min-w-0
+                      rounded-xl
+                      border
+                      border-amber-200
+                      bg-amber-50
+                      p-3
+                      sm:p-4
+                    "
+                  >
+
+                    <div
+                      className="
+                        break-words
+                        text-sm
+                        font-bold
+                        text-amber-900
+                      "
+                    >
+                      {patientLanguage ===
+                      'Hindi'
+                        ? 'कृपया अपना उत्तर सत्यापित करें'
+                        : 'Please confirm your answer'}
+                    </div>
+
+                    <div
+                      className="
+                        mt-1
+                        break-words
+                        text-xs
+                        text-amber-800
+                      "
+                    >
+                      {patientLanguage ===
+                      'Hindi'
+                        ? 'मैंने समझा:'
+                        : 'I understood:'}
+                    </div>
+
+                    <div
+                      className="
+                        mt-2
+                        max-h-32
+                        overflow-y-auto
+                        break-words
+                        rounded-lg
+                        border
+                        border-amber-200
+                        bg-white
+                        p-3
+                        text-sm
+                        font-semibold
+                        text-slate-800
+                      "
+                    >
+                      {pendingAnswer}
                     </div>
 
                   </div>
-                )}
 
-              </div>
+                  <div
+                    className="
+                      grid
+                      grid-cols-1
+                      gap-2
+                      sm:grid-cols-2
+                    "
+                  >
 
-            ) : (
+                    <button
+                      type="button"
+                      onClick={
+                        handleConfirmAnswer
+                      }
+                      disabled={loading}
+                      className="
+                        min-h-11
+                        w-full
+                        rounded-xl
+                        bg-emerald-600
+                        px-4
+                        py-3
+                        text-sm
+                        font-bold
+                        text-white
+                        disabled:opacity-50
+                        hover:bg-emerald-700
+                      "
+                    >
+                      ✓{' '}
 
-              /* NORMAL INTERVIEW CONTROLS */
-              <div className="flex items-center gap-3">
+                      {patientLanguage ===
+                      'Hindi'
+                        ? 'हाँ, सही है'
+                        : "Yes, that's correct"}
+                    </button>
 
-                <VoiceVisualizer
-                  onTranscript={
-                    handleVoiceTranscript
-                  }
-                  textToSpeak={
-                    latestAiText
-                  }
-                  language={
-                    patientLanguage
-                  }
-                />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCorrectionMode(
+                          true
+                        );
 
-                <input
-                  type="text"
-                  value={
-                    inputText
-                  }
-                  onChange={(event) =>
-                    setInputText(
-                      event.target.value
-                    )
-                  }
-                  onKeyDown={(event) => {
+                        setInputText('');
+                      }}
+                      disabled={loading}
+                      className="
+                        min-h-11
+                        w-full
+                        rounded-xl
+                        border
+                        border-slate-300
+                        bg-white
+                        px-4
+                        py-3
+                        text-sm
+                        font-bold
+                        text-slate-800
+                        disabled:opacity-50
+                        hover:bg-slate-50
+                      "
+                    >
+                      ✎{' '}
 
-                    if (
-                      event.key ===
-                        'Enter' &&
-                      inputText.trim()
-                    ) {
+                      {patientLanguage ===
+                      'Hindi'
+                        ? 'उत्तर बदलें'
+                        : 'Change my answer'}
+                    </button>
 
+                  </div>
+
+                  {correctionMode && (
+
+                    <div
+                      className="
+                        min-w-0
+                        rounded-xl
+                        border
+                        border-slate-200
+                        bg-slate-50
+                        p-3
+                      "
+                    >
+
+                      <div
+                        className="
+                          mb-2
+                          break-words
+                          text-xs
+                          font-bold
+                          text-slate-700
+                        "
+                      >
+                        {patientLanguage ===
+                        'Hindi'
+                          ? 'सही उत्तर बोलें या टाइप करें'
+                          : 'Speak or type your corrected answer'}
+                      </div>
+
+                      {/* RESPONSIVE CORRECTION CONTROLS */}
+                      <div
+                        className="
+                          flex
+                          min-w-0
+                          flex-col
+                          gap-2
+                          sm:flex-row
+                          sm:items-center
+                        "
+                      >
+
+                        <div
+                          className="
+                            flex
+                            w-full
+                            min-w-0
+                            shrink-0
+                            items-center
+                            sm:w-auto
+                          "
+                        >
+
+                          <VoiceVisualizer
+                            onTranscript={
+                              handleVoiceCorrection
+                            }
+                            textToSpeak=""
+                            language={
+                              patientLanguage
+                            }
+                          />
+
+                        </div>
+
+                        <input
+                          type="text"
+                          value={
+                            inputText
+                          }
+                          onChange={(event) =>
+                            setInputText(
+                              event.target.value
+                            )
+                          }
+                          onKeyDown={(
+                            event
+                          ) => {
+
+                            if (
+                              event.key ===
+                                'Enter' &&
+                              inputText.trim()
+                            ) {
+
+                              handleCorrection(
+                                inputText,
+                                'text'
+                              );
+
+                            }
+
+                          }}
+                          placeholder={
+                            patientLanguage ===
+                            'Hindi'
+                              ? 'सही उत्तर टाइप करें...'
+                              : 'Type your corrected answer...'
+                          }
+                          className="
+                            min-w-0
+                            w-full
+                            flex-1
+                            rounded-xl
+                            border
+                            border-slate-200
+                            bg-white
+                            px-4
+                            py-2.5
+                            text-sm
+                            focus:outline-none
+                            focus:ring-2
+                            focus:ring-ayur-500
+                          "
+                          disabled={
+                            loading
+                          }
+                        />
+
+                        <button
+                          type="button"
+                          disabled={
+                            loading ||
+                            !inputText.trim()
+                          }
+                          onClick={() =>
+                            handleCorrection(
+                              inputText,
+                              'text'
+                            )
+                          }
+                          className="
+                            flex
+                            h-11
+                            w-full
+                            shrink-0
+                            items-center
+                            justify-center
+                            rounded-xl
+                            bg-ayur-600
+                            text-white
+                            hover:bg-ayur-700
+                            disabled:opacity-40
+                            sm:w-11
+                          "
+                        >
+
+                          <Send className="h-4 w-4" />
+
+                        </button>
+
+                      </div>
+
+                    </div>
+                  )}
+
+                </div>
+
+              ) : (
+
+                /* =================================================
+                   NORMAL INTERVIEW CONTROLS
+                ================================================== */
+                <div
+                  className="
+                    flex
+                    min-w-0
+                    flex-col
+                    gap-2
+                    sm:flex-row
+                    sm:items-center
+                    sm:gap-3
+                  "
+                >
+
+                  {/* VOICE CONTROLS */}
+                  <div
+                    className="
+                      flex
+                      w-full
+                      min-w-0
+                      shrink-0
+                      items-center
+                      sm:w-auto
+                    "
+                  >
+
+                    <VoiceVisualizer
+                      onTranscript={
+                        handleVoiceTranscript
+                      }
+                      textToSpeak={
+                        latestAiText
+                      }
+                      language={
+                        patientLanguage
+                      }
+                    />
+
+                  </div>
+
+                  {/* TEXT INPUT */}
+                  <input
+                    type="text"
+                    value={
+                      inputText
+                    }
+                    onChange={(event) =>
+                      setInputText(
+                        event.target.value
+                      )
+                    }
+                    onKeyDown={(event) => {
+
+                      if (
+                        event.key ===
+                          'Enter' &&
+                        inputText.trim()
+                      ) {
+
+                        handleSendMessage(
+                          inputText,
+                          'text'
+                        );
+
+                      }
+
+                    }}
+                    placeholder={t(
+                      uiLanguage,
+                      'typeAnswer'
+                    )}
+                    className="
+                      min-w-0
+                      w-full
+                      flex-1
+                      rounded-xl
+                      border
+                      border-slate-200
+                      bg-white
+                      px-4
+                      py-2.5
+                      text-sm
+                      focus:outline-none
+                      focus:ring-2
+                      focus:ring-ayur-500
+                    "
+                    disabled={loading}
+                  />
+
+                  {/* SEND */}
+                  <button
+                    type="button"
+                    onClick={() =>
                       handleSendMessage(
                         inputText,
                         'text'
-                      );
-
+                      )
                     }
+                    disabled={
+                      loading ||
+                      !inputText.trim()
+                    }
+                    className="
+                      flex
+                      h-11
+                      w-full
+                      shrink-0
+                      items-center
+                      justify-center
+                      rounded-xl
+                      bg-ayur-600
+                      px-4
+                      text-white
+                      shadow-sm
+                      shadow-ayur-600/20
+                      transition
+                      hover:bg-ayur-700
+                      disabled:opacity-40
+                      sm:w-11
+                      sm:px-0
+                    "
+                    title={t(
+                      uiLanguage,
+                      'sendAnswer'
+                    )}
+                  >
 
-                  }}
-                  placeholder={t(
-                    uiLanguage,
-                    'typeAnswer'
-                  )}
-                  className="flex-1 px-4 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-ayur-500"
-                  disabled={loading}
-                />
+                    <Send className="h-4 w-4" />
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleSendMessage(
-                      inputText,
-                      'text'
-                    )
-                  }
-                  disabled={
-                    loading ||
-                    !inputText.trim()
-                  }
-                  className="p-2.5 rounded-xl bg-ayur-600 hover:bg-ayur-700 text-white transition shadow-sm shadow-ayur-600/20 disabled:opacity-40"
-                  title={t(
-                    uiLanguage,
-                    'sendAnswer'
-                  )}
-                >
+                  </button>
 
-                  <Send className="w-4 h-4" />
+                </div>
+              )}
 
-                </button>
-
-              </div>
-
-            )}
+            </div>
 
           </div>
 
         </div>
 
-        {/* CLINICAL EXTRACTION */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
+        {/* =====================================================
+            CLINICAL EXTRACTION
+        ====================================================== */}
+        <div
+          className="
+            min-w-0
+            rounded-2xl
+            border
+            border-slate-200
+            bg-white
+            p-4
+            shadow-sm
+            sm:p-5
+          "
+        >
 
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div
+            className="
+              flex
+              min-w-0
+              items-center
+              justify-between
+              gap-3
+              border-b
+              border-slate-100
+              pb-3
+            "
+          >
 
-            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <h2
+              className="
+                flex
+                min-w-0
+                items-center
+                gap-2
+                break-words
+                text-sm
+                font-bold
+                text-slate-900
+              "
+            >
 
-              <Sparkles className="w-4 h-4 text-amber-500" />
+              <Sparkles
+                className="
+                  h-4
+                  w-4
+                  shrink-0
+                  text-amber-500
+                "
+              />
 
               {t(
                 uiLanguage,
@@ -1429,22 +2051,62 @@ const AIInterviewPage = () => {
 
             </h2>
 
-            <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-
+            <span
+              className="
+                shrink-0
+                rounded-full
+                bg-slate-100
+                px-2
+                py-0.5
+                text-[10px]
+                font-bold
+                text-slate-600
+              "
+            >
               Live NLP
-
             </span>
 
           </div>
 
-          <div className="space-y-3 text-xs">
+          <div
+            className="
+              mt-4
+              space-y-3
+              text-xs
+            "
+          >
 
             {/* SYMPTOMS */}
-            <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-100">
+            <div
+              className="
+                min-w-0
+                rounded-xl
+                border
+                border-emerald-100
+                bg-emerald-50/70
+                p-3
+              "
+            >
 
-              <span className="font-bold text-emerald-900 flex items-center gap-1 mb-1">
+              <span
+                className="
+                  mb-1
+                  flex
+                  items-center
+                  gap-1
+                  font-bold
+                  text-emerald-900
+                "
+              >
 
-                <Activity className="w-3.5 h-3.5 text-emerald-600" />
+                <Activity
+                  className="
+                    h-3.5
+                    w-3.5
+                    shrink-0
+                    text-emerald-600
+                  "
+                />
 
                 {t(
                   uiLanguage,
@@ -1453,7 +2115,14 @@ const AIInterviewPage = () => {
 
               </span>
 
-              <div className="flex flex-wrap gap-1">
+              <div
+                className="
+                  flex
+                  min-w-0
+                  flex-wrap
+                  gap-1
+                "
+              >
 
                 {extractedSummary.symptoms?.length >
                 0 ? (
@@ -1463,11 +2132,18 @@ const AIInterviewPage = () => {
 
                       <span
                         key={index}
-                        className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-medium"
+                        className="
+                          max-w-full
+                          break-words
+                          rounded
+                          bg-emerald-100
+                          px-2
+                          py-0.5
+                          font-medium
+                          text-emerald-800
+                        "
                       >
-
                         {symptom}
-
                       </span>
 
                     )
@@ -1475,13 +2151,16 @@ const AIInterviewPage = () => {
 
                 ) : (
 
-                  <span className="text-slate-400 italic">
-
+                  <span
+                    className="
+                      text-slate-400
+                      italic
+                    "
+                  >
                     {t(
                       uiLanguage,
                       'listening'
                     )}
-
                   </span>
 
                 )}
@@ -1491,11 +2170,35 @@ const AIInterviewPage = () => {
             </div>
 
             {/* DURATION / SEVERITY */}
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+            <div
+              className="
+                min-w-0
+                rounded-xl
+                border
+                border-slate-100
+                bg-slate-50
+                p-3
+              "
+            >
 
-              <span className="font-bold text-slate-700 flex items-center gap-1 mb-1">
+              <span
+                className="
+                  mb-1
+                  flex
+                  items-center
+                  gap-1
+                  font-bold
+                  text-slate-700
+                "
+              >
 
-                <Clock className="w-3.5 h-3.5 text-slate-500" />
+                <Clock
+                  className="
+                    h-3.5
+                    w-3.5
+                    text-slate-500
+                  "
+                />
 
                 {t(
                   uiLanguage,
@@ -1504,7 +2207,7 @@ const AIInterviewPage = () => {
 
               </span>
 
-              <p className="text-slate-600">
+              <p className="break-words text-slate-600">
 
                 {t(
                   uiLanguage,
@@ -1512,19 +2215,22 @@ const AIInterviewPage = () => {
                 )}
                 :{' '}
 
-                <span className="font-semibold text-slate-800">
-
+                <span
+                  className="
+                    font-semibold
+                    text-slate-800
+                  "
+                >
                   {extractedSummary.duration ||
                     (uiLanguage ===
                     'Hindi'
                       ? '3-5 दिन'
                       : '3-5 days')}
-
                 </span>
 
               </p>
 
-              <p className="text-slate-600">
+              <p className="break-words text-slate-600">
 
                 {t(
                   uiLanguage,
@@ -1532,14 +2238,17 @@ const AIInterviewPage = () => {
                 )}
                 :{' '}
 
-                <span className="font-semibold text-slate-800">
-
+                <span
+                  className="
+                    font-semibold
+                    text-slate-800
+                  "
+                >
                   {extractedSummary.severity ||
                     (uiLanguage ===
                     'Hindi'
                       ? 'मध्यम'
                       : 'Moderate')}
-
                 </span>
 
               </p>
@@ -1547,11 +2256,35 @@ const AIInterviewPage = () => {
             </div>
 
             {/* MEDICATIONS */}
-            <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-100">
+            <div
+              className="
+                min-w-0
+                rounded-xl
+                border
+                border-blue-100
+                bg-blue-50/70
+                p-3
+              "
+            >
 
-              <span className="font-bold text-blue-900 flex items-center gap-1 mb-1">
+              <span
+                className="
+                  mb-1
+                  flex
+                  items-center
+                  gap-1
+                  font-bold
+                  text-blue-900
+                "
+              >
 
-                <Pill className="w-3.5 h-3.5 text-blue-600" />
+                <Pill
+                  className="
+                    h-3.5
+                    w-3.5
+                    text-blue-600
+                  "
+                />
 
                 {t(
                   uiLanguage,
@@ -1560,7 +2293,14 @@ const AIInterviewPage = () => {
 
               </span>
 
-              <div className="flex flex-wrap gap-1">
+              <div
+                className="
+                  flex
+                  min-w-0
+                  flex-wrap
+                  gap-1
+                "
+              >
 
                 {extractedSummary.medications?.length >
                 0 ? (
@@ -1570,11 +2310,18 @@ const AIInterviewPage = () => {
 
                       <span
                         key={index}
-                        className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-medium"
+                        className="
+                          max-w-full
+                          break-words
+                          rounded
+                          bg-blue-100
+                          px-2
+                          py-0.5
+                          font-medium
+                          text-blue-800
+                        "
                       >
-
                         {medication}
-
                       </span>
 
                     )
@@ -1582,13 +2329,16 @@ const AIInterviewPage = () => {
 
                 ) : (
 
-                  <span className="text-slate-400 italic">
-
+                  <span
+                    className="
+                      text-slate-400
+                      italic
+                    "
+                  >
                     {t(
                       uiLanguage,
                       'noneLogged'
                     )}
-
                   </span>
 
                 )}
@@ -1598,11 +2348,35 @@ const AIInterviewPage = () => {
             </div>
 
             {/* ALLERGIES */}
-            <div className="p-3 rounded-xl bg-rose-50/70 border border-rose-100">
+            <div
+              className="
+                min-w-0
+                rounded-xl
+                border
+                border-rose-100
+                bg-rose-50/70
+                p-3
+              "
+            >
 
-              <span className="font-bold text-rose-900 flex items-center gap-1 mb-1">
+              <span
+                className="
+                  mb-1
+                  flex
+                  items-center
+                  gap-1
+                  font-bold
+                  text-rose-900
+                "
+              >
 
-                <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
+                <ShieldAlert
+                  className="
+                    h-3.5
+                    w-3.5
+                    text-rose-600
+                  "
+                />
 
                 {t(
                   uiLanguage,
@@ -1611,7 +2385,12 @@ const AIInterviewPage = () => {
 
               </span>
 
-              <p className="text-rose-800">
+              <p
+                className="
+                  break-words
+                  text-rose-800
+                "
+              >
 
                 {extractedSummary.allergies?.length >
                 0
@@ -1629,7 +2408,14 @@ const AIInterviewPage = () => {
 
           </div>
 
-          <div className="pt-3 border-t border-slate-100">
+          <div
+            className="
+              mt-4
+              border-t
+              border-slate-100
+              pt-3
+            "
+          >
 
             <button
               onClick={() =>
@@ -1637,19 +2423,32 @@ const AIInterviewPage = () => {
                   '/documents'
                 )
               }
-              className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition"
+              className="
+                flex
+                min-h-11
+                w-full
+                items-center
+                justify-center
+                gap-1.5
+                rounded-xl
+                bg-slate-900
+                py-2.5
+                text-xs
+                font-bold
+                text-white
+                transition
+                hover:bg-slate-800
+              "
             >
 
               <span>
-
                 {t(
                   uiLanguage,
                   'skipNextDocuments'
                 )}
-
               </span>
 
-              <ArrowRight className="w-3.5 h-3.5" />
+              <ArrowRight className="h-3.5 w-3.5" />
 
             </button>
 

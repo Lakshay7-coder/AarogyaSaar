@@ -33,7 +33,6 @@ const VoiceVisualizer = ({
   textToSpeak,
   language = 'English'
 }) => {
-
   const [isListening, setIsListening] =
     useState(false);
 
@@ -69,7 +68,6 @@ const VoiceVisualizer = ({
 
   const stopListening =
     useCallback(() => {
-
       listeningRef.current = false;
 
       setIsListening(false);
@@ -77,17 +75,14 @@ const VoiceVisualizer = ({
       try {
         recognitionRef.current?.stop();
       } catch (_) {}
-
     }, []);
 
   useEffect(() => {
-
     const SpeechRecognition =
       window.SpeechRecognition ||
       window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-
       setSupported(false);
 
       setVoiceError(
@@ -104,9 +99,7 @@ const VoiceVisualizer = ({
       new SpeechRecognition();
 
     recognition.continuous = false;
-
     recognition.interimResults = true;
-
     recognition.maxAlternatives = 1;
 
     recognition.lang =
@@ -114,19 +107,16 @@ const VoiceVisualizer = ({
       'en-IN';
 
     recognition.onstart = () => {
-
       listeningRef.current = true;
 
       setIsListening(true);
 
       setVoiceError('');
-
     };
 
     recognition.onresult = (
       event
     ) => {
-
       let finalTranscript = '';
 
       for (
@@ -134,44 +124,30 @@ const VoiceVisualizer = ({
         i < event.results.length;
         i += 1
       ) {
-
         const result =
           event.results[i];
 
-        if (
-          result.isFinal
-        ) {
-
+        if (result.isFinal) {
           finalTranscript +=
             result[0].transcript;
-
         }
-
       }
 
-      if (
-        finalTranscript.trim()
-      ) {
-
-        listeningRef.current =
-          false;
+      if (finalTranscript.trim()) {
+        listeningRef.current = false;
 
         setIsListening(false);
 
         transcriptHandlerRef.current?.(
           finalTranscript.trim()
         );
-
       }
-
     };
 
     recognition.onerror = (
       event
     ) => {
-
-      listeningRef.current =
-        false;
+      listeningRef.current = false;
 
       setIsListening(false);
 
@@ -208,33 +184,25 @@ const VoiceVisualizer = ({
       };
 
       setVoiceError(
-        errorMessages[
-          event.error
-        ] ||
+        errorMessages[event.error] ||
           `Voice input error: ${
             event.error ||
             'unknown error'
           }`
       );
-
     };
 
     recognition.onend = () => {
-
-      listeningRef.current =
-        false;
+      listeningRef.current = false;
 
       setIsListening(false);
-
     };
 
     recognitionRef.current =
       recognition;
 
     return () => {
-
-      listeningRef.current =
-        false;
+      listeningRef.current = false;
 
       try {
         recognition.abort();
@@ -242,16 +210,13 @@ const VoiceVisualizer = ({
 
       recognitionRef.current =
         null;
-
     };
-
   }, [language]);
 
   /*
    * Speak only the newly received AI text.
    */
   useEffect(() => {
-
     if (
       !speechSynthesisActive ||
       !textToSpeak ||
@@ -293,7 +258,6 @@ const VoiceVisualizer = ({
     }
 
     utterance.rate = 1;
-
     utterance.pitch = 1;
 
     window.speechSynthesis.speak(
@@ -302,7 +266,6 @@ const VoiceVisualizer = ({
 
     return () =>
       window.speechSynthesis.cancel();
-
   }, [
     textToSpeak,
     speechSynthesisActive,
@@ -310,7 +273,6 @@ const VoiceVisualizer = ({
   ]);
 
   const toggleListening = () => {
-
     const recognition =
       recognitionRef.current;
 
@@ -324,7 +286,6 @@ const VoiceVisualizer = ({
     if (
       listeningRef.current
     ) {
-
       stopListening();
 
       return;
@@ -333,11 +294,8 @@ const VoiceVisualizer = ({
     setVoiceError('');
 
     try {
-
       recognition.start();
-
     } catch (err) {
-
       try {
         recognition.abort();
       } catch (_) {}
@@ -353,13 +311,10 @@ const VoiceVisualizer = ({
           'micRestart'
         )
       );
-
     }
-
   };
 
   const toggleSpeaker = () => {
-
     if (
       speechSynthesisActive
     ) {
@@ -369,27 +324,45 @@ const VoiceVisualizer = ({
     setSpeechSynthesisActive(
       active => !active
     );
-
   };
 
   return (
-    <div className="flex items-center gap-2 min-w-0">
-
+    <div
+      className="
+        flex
+        min-w-0
+        max-w-full
+        flex-wrap
+        items-center
+        gap-2
+      "
+    >
+      {/* Microphone */}
       <button
         type="button"
-        onClick={
-          toggleListening
-        }
+        onClick={toggleListening}
         disabled={!supported}
-        className={`p-2.5 rounded-full transition-all flex items-center justify-center ${
-          isListening
-            ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30 animate-pulse'
-            : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
-        } ${
-          !supported
-            ? 'opacity-40 cursor-not-allowed'
-            : ''
-        }`}
+        className={`
+          flex
+          h-11
+          w-11
+          shrink-0
+          items-center
+          justify-center
+          rounded-full
+          p-2.5
+          transition-all
+          ${
+            isListening
+              ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30 animate-pulse'
+              : 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+          }
+          ${
+            !supported
+              ? 'cursor-not-allowed opacity-40'
+              : ''
+          }
+        `}
         title={
           isListening
             ? t(
@@ -413,19 +386,30 @@ const VoiceVisualizer = ({
               )
         }
       >
-        <Mic className="w-5 h-5" />
+        <Mic className="h-5 w-5" />
       </button>
 
+      {/* Speaker */}
       <button
         type="button"
-        onClick={
-          toggleSpeaker
-        }
-        className={`p-2 rounded-full border transition-colors ${
-          speechSynthesisActive
-            ? 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
-            : 'bg-slate-50 text-slate-400 border-slate-200'
-        }`}
+        onClick={toggleSpeaker}
+        className={`
+          flex
+          h-10
+          w-10
+          shrink-0
+          items-center
+          justify-center
+          rounded-full
+          border
+          p-2
+          transition-colors
+          ${
+            speechSynthesisActive
+              ? 'border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200'
+              : 'border-slate-200 bg-slate-50 text-slate-400'
+          }
+        `}
         title={
           speechSynthesisActive
             ? t(
@@ -450,14 +434,25 @@ const VoiceVisualizer = ({
         }
       >
         {speechSynthesisActive ? (
-          <Volume2 className="w-4 h-4" />
+          <Volume2 className="h-4 w-4" />
         ) : (
-          <VolumeX className="w-4 h-4" />
+          <VolumeX className="h-4 w-4" />
         )}
       </button>
 
+      {/* Listening status */}
       {isListening && (
-        <span className="text-xs text-rose-600 font-semibold animate-pulse whitespace-nowrap">
+        <span
+          className="
+            min-w-0
+            max-w-full
+            text-xs
+            font-semibold
+            text-rose-600
+            animate-pulse
+            whitespace-nowrap
+          "
+        >
           {t(
             language,
             'listening'
@@ -465,20 +460,40 @@ const VoiceVisualizer = ({
         </span>
       )}
 
+      {/* Voice error */}
       {voiceError &&
         !isListening && (
           <span
-            className="text-[10px] text-amber-700 flex items-center gap-1 max-w-[230px]"
+            className="
+              flex
+              min-w-0
+              max-w-full
+              items-center
+              gap-1
+              text-[10px]
+              leading-tight
+              text-amber-700
+            "
             title={voiceError}
           >
-            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+            <AlertCircle
+              className="
+                h-3.5
+                w-3.5
+                shrink-0
+              "
+            />
 
-            <span className="truncate">
+            <span
+              className="
+                min-w-0
+                break-words
+              "
+            >
               {voiceError}
             </span>
           </span>
         )}
-
     </div>
   );
 };
